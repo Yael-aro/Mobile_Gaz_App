@@ -1,0 +1,2 @@
+Cette commande nécessite ImageMagick. Pour l'instant, utilise des icônes existantes ou crée-les manuellement.
+Tu peux utiliser: https://realfavicongenerator.net/ pour générer tes icônes.

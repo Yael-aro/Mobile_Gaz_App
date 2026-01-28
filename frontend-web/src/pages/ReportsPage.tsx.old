@@ -1,0 +1,416 @@
+import { useState } from 'react';
+import { FileText, Download, Calendar, Package, Users, TrendingUp, AlertTriangle } from 'lucide-react';
+import { useBottles } from '@/contexts/BottleContext';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { StatsCard } from '@/components/common/StatsCard';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+import { format, subDays } from 'date-fns';
+import { fr } from 'date-fns/locale';
+
+const COLORS = ['#0066CC', '#00A3E0', '#10B981', '#F59E0B', '#EF4444'];
+
+export default function ReportsPage() {
+  const { stats, bottles, movements, clients } = useBottles();
+  const { notifications } = useNotifications();
+  const [reportType, setReportType] = useState('stock');
+
+  // Prepare data for charts
+  const typeDistribution = [
+    { name: 'Acier', value: bottles.filter(b => b.bottleType === 'acier').length },
+    { name: 'Composite', value: bottles.filter(b => b.bottleType === 'composite').length },
+    { name: 'Aluminium', value: bottles.filter(b => b.bottleType === 'aluminium').length },
+  ];
+
+  const statusDistribution = [
+    { name: 'Disponible', value: stats.available, color: '#10B981' },
+    { name: 'En service', value: stats.inUse, color: '#00A3E0' },
+    { name: 'Maintenance', value: stats.maintenance, color: '#F59E0B' },
+    { name: 'Perdue', value: stats.lost, color: '#EF4444' },
+  ];
+
+  const locationDistribution = [
+    { name: 'Clients', value: stats.atClients },
+    { name: 'Entrepôts', value: stats.atWarehouses },
+    { name: 'Cantiniers', value: stats.atCantiniers },
+  ];
+
+  // Top clients by bottle count
+  const topClients = clients
+    .sort((a, b) => b.bottleCount - a.bottleCount)
+    .slice(0, 5)
+    .map(c => ({ name: c.name, bottles: c.bottleCount }));
+
+  // Movements per day (last 7 days)
+  const movementsPerDay = Array.from({ length: 7 }, (_, i) => {
+    const date = subDays(new Date(), 6 - i);
+    const dateStr = format(date, 'yyyy-MM-dd');
+    const count = movements.filter(m => 
+      format(m.timestamp, 'yyyy-MM-dd') === dateStr
+    ).length;
+    return { date: format(date, 'dd/MM'), mouvements: count };
+  });
+
+  const activeAlerts = notifications.filter(n => !n.read && n.priority === 'high');
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Rapports & Analytics</h1>
+          <p className="text-muted-foreground">Analysez les performances et générez des rapports</p>
+        </div>
+        <div className="flex gap-3">
+          <Button variant="outline">
+            <Download className="mr-2 h-4 w-4" />
+            Exporter PDF
+          </Button>
+          <Button variant="outline">
+            <FileText className="mr-2 h-4 w-4" />
+            Exporter Excel
+          </Button>
+        </div>
+      </div>
+
+      {/* Report Type Selector */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-medium">Type de Rapport</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              variant={reportType === 'stock' ? 'default' : 'outline'}
+              onClick={() => setReportType('stock')}
+            >
+              <Package className="mr-2 h-4 w-4" />
+              Stock
+            </Button>
+            <Button
+              variant={reportType === 'movements' ? 'default' : 'outline'}
+              onClick={() => setReportType('movements')}
+            >
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Mouvements
+            </Button>
+            <Button
+              variant={reportType === 'clients' ? 'default' : 'outline'}
+              onClick={() => setReportType('clients')}
+            >
+              <Users className="mr-2 h-4 w-4" />
+              Clients
+            </Button>
+            <Button
+              variant={reportType === 'alerts' ? 'default' : 'outline'}
+              onClick={() => setReportType('alerts')}
+            >
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Alertes
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Stock Report */}
+      {reportType === 'stock' && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatsCard
+              title="Total Bouteilles"
+              value={stats.totalBottles}
+              icon={Package}
+              variant="primary"
+            />
+            <StatsCard
+              title="Taux d'utilisation"
+              value={`${Math.round((stats.inUse / stats.totalBottles) * 100)}%`}
+              icon={TrendingUp}
+              variant="info"
+            />
+            <StatsCard
+              title="Disponibles"
+              value={stats.available}
+              icon={Package}
+              variant="success"
+            />
+            <StatsCard
+              title="En maintenance"
+              value={stats.maintenance}
+              icon={AlertTriangle}
+              variant="warning"
+            />
+          </div>
+
+          {/* Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Distribution par Type</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={typeDistribution}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        fill="#8884d8"
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {typeDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Distribution par Statut</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={statusDistribution}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {statusDistribution.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Distribution par Localisation</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={locationDistribution} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                      <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                      <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={80} />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'hsl(var(--card))',
+                          border: '1px solid hsl(var(--border))',
+                          borderRadius: '8px',
+                        }}
+                      />
+                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
+
+      {/* Movements Report */}
+      {reportType === 'movements' && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatsCard
+              title="Total Mouvements"
+              value={movements.length}
+              icon={TrendingUp}
+              variant="primary"
+            />
+            <StatsCard
+              title="Aujourd'hui"
+              value={movements.filter(m => format(m.timestamp, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')).length}
+              icon={Calendar}
+              variant="info"
+            />
+            <StatsCard
+              title="Cette semaine"
+              value={movements.filter(m => m.timestamp > subDays(new Date(), 7)).length}
+              icon={TrendingUp}
+              variant="success"
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Mouvements (7 derniers jours)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={movementsPerDay}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="mouvements" fill="hsl(var(--secondary))" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Clients Report */}
+      {reportType === 'clients' && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatsCard
+              title="Total Clients"
+              value={clients.length}
+              icon={Users}
+              variant="primary"
+            />
+            <StatsCard
+              title="Bouteilles chez Clients"
+              value={stats.atClients}
+              icon={Package}
+              variant="info"
+            />
+            <StatsCard
+              title="Moyenne par Client"
+              value={(stats.atClients / clients.length).toFixed(1)}
+              icon={TrendingUp}
+              variant="success"
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Top 5 Clients (par bouteilles)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={topClients} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis type="number" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                    <YAxis dataKey="name" type="category" stroke="hsl(var(--muted-foreground))" fontSize={12} width={120} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                    />
+                    <Bar dataKey="bottles" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
+
+      {/* Alerts Report */}
+      {reportType === 'alerts' && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <StatsCard
+              title="Alertes Actives"
+              value={activeAlerts.length}
+              icon={AlertTriangle}
+              variant="danger"
+            />
+            <StatsCard
+              title="Total Notifications"
+              value={notifications.length}
+              icon={AlertTriangle}
+              variant="warning"
+            />
+            <StatsCard
+              title="Non Lues"
+              value={notifications.filter(n => !n.read).length}
+              icon={AlertTriangle}
+              variant="info"
+            />
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Alertes Prioritaires</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {activeAlerts.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  Aucune alerte prioritaire
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {activeAlerts.map((alert) => (
+                    <div
+                      key={alert.id}
+                      className="p-4 rounded-lg border bg-destructive/5 border-destructive/20"
+                    >
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-destructive mt-0.5" />
+                        <div>
+                          <p className="font-medium text-foreground">{alert.title}</p>
+                          <p className="text-sm text-muted-foreground">{alert.message}</p>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {format(alert.createdAt, 'dd/MM/yyyy HH:mm', { locale: fr })}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
+    </div>
+  );
+}

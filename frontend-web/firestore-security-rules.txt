@@ -1,0 +1,58 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Fonctions helper
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() == 'admin';
+    }
+    
+    function isCantinier() {
+      return isAuthenticated() && getUserRole() == 'cantinier';
+    }
+    
+    function isClient() {
+      return isAuthenticated() && getUserRole() == 'client';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+    
+    // Bottles collection
+    match /bottles/{bottleId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isCantinier();
+      allow delete: if isAdmin();
+    }
+    
+    // Clients collection
+    match /clients/{clientId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+    
+    // Movements collection
+    match /movements/{movementId} {
+      allow read: if isAuthenticated();
+      allow create: if isAdmin() || isCantinier();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}

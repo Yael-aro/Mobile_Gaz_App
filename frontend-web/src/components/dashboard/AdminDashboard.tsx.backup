@@ -1,0 +1,249 @@
+import { Package, CheckCircle, Users, Wrench, AlertTriangle, TrendingUp } from 'lucide-react';
+import { StatsCard } from '@/components/common/StatsCard';
+import { useBottles } from '@/contexts/BottleContext';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { StatusBadge } from '@/components/common/StatusBadge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+} from 'recharts';
+
+const COLORS = ['#0066CC', '#00A3E0', '#10B981', '#F59E0B'];
+
+export function AdminDashboard() {
+  const { stats, bottles, movements } = useBottles();
+  const { notifications } = useNotifications();
+
+  // Prepare chart data
+  const typeData = [
+    { name: 'Acier', value: bottles.filter(b => b.bottleType === 'acier').length },
+    { name: 'Composite', value: bottles.filter(b => b.bottleType === 'composite').length },
+    { name: 'Aluminium', value: bottles.filter(b => b.bottleType === 'aluminium').length },
+  ];
+
+  // Last 7 days movements
+  const last7Days = Array.from({ length: 7 }, (_, i) => {
+    const date = new Date();
+    date.setDate(date.getDate() - (6 - i));
+    const dateStr = format(date, 'dd/MM');
+    const count = movements.filter(m => 
+      format(m.timestamp, 'dd/MM') === dateStr
+    ).length;
+    return { date: dateStr, mouvements: count };
+  });
+
+  const unreadNotifications = notifications.filter(n => !n.read);
+  const recentMovements = movements.slice(0, 5);
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          title="Total Bouteilles"
+          value={stats.totalBottles}
+          icon={Package}
+          variant="primary"
+          trend={{ value: 12, isPositive: true }}
+        />
+        <StatsCard
+          title="Disponibles"
+          value={stats.available}
+          icon={CheckCircle}
+          variant="success"
+        />
+        <StatsCard
+          title="Chez Clients"
+          value={stats.atClients}
+          icon={Users}
+          variant="info"
+        />
+        <StatsCard
+          title="En Maintenance"
+          value={stats.maintenance}
+          icon={Wrench}
+          variant="warning"
+        />
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Distribution Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Distribution par Type</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={typeData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="name" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Movements Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold">Mouvements (7 derniers jours)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={last7Days}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="date" stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))',
+                      border: '1px solid hsl(var(--border))',
+                      borderRadius: '8px',
+                    }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="mouvements" 
+                    stroke="hsl(var(--secondary))" 
+                    strokeWidth={2}
+                    dot={{ fill: 'hsl(var(--secondary))' }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Alerts and Recent Movements */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active Alerts */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Alertes Actives
+            </CardTitle>
+            <Button variant="outline" size="sm">Voir tout</Button>
+          </CardHeader>
+          <CardContent>
+            {unreadNotifications.length === 0 ? (
+              <p className="text-muted-foreground text-sm text-center py-8">
+                Aucune alerte active
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {unreadNotifications.slice(0, 4).map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border border-border"
+                  >
+                    <span className="text-lg">
+                      {notification.type === 'not_returned' ? '⚠️' : 
+                       notification.type === 'low_stock' ? '📦' : 
+                       notification.type === 'anomaly' ? '🔴' : 'ℹ️'}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium">{notification.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-1">
+                        {notification.message}
+                      </p>
+                    </div>
+                    <StatusBadge 
+                      status={notification.priority === 'high' ? 'danger' : 'warning'} 
+                      label={notification.priority === 'high' ? 'Urgent' : 'Moyen'}
+                      size="sm"
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Movements */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-primary" />
+              Derniers Mouvements
+            </CardTitle>
+            <Button variant="outline" size="sm">Voir tout</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {recentMovements.map((movement) => (
+                <div
+                  key={movement.id}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Package className="h-4 w-4 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium">{movement.bottleSerial}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {movement.from} → {movement.to}
+                    </p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">
+                    {format(movement.timestamp, 'dd/MM HH:mm', { locale: fr })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Quick Actions */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold">Actions Rapides</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-3">
+            <Button className="btn-gradient-primary">
+              <Package className="mr-2 h-4 w-4" />
+              Nouvelle Bouteille
+            </Button>
+            <Button variant="outline">
+              <TrendingUp className="mr-2 h-4 w-4" />
+              Générer Rapport
+            </Button>
+            <Button variant="outline">
+              <AlertTriangle className="mr-2 h-4 w-4" />
+              Voir Toutes Notifications
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

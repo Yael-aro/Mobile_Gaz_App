@@ -1,0 +1,77 @@
+import { useBottles } from '@/contexts/BottleContext';
+import { StatsCard } from '@/components/common/StatsCard';
+import { Package, Users, TrendingUp, AlertCircle } from 'lucide-react';
+
+export function AdminDashboard() {
+  const { stats, bottles, clients, loading } = useBottles();
+
+  if (loading) {
+    return <div className="p-8">Chargement...</div>;
+  }
+
+  return (
+    <div className="space-y-6 p-8">
+      <h1 className="text-3xl font-bold">Tableau de bord Administrateur</h1>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatsCard
+          title="Total Bouteilles"
+          value={stats.totalBottles}
+          icon={Package}
+          trend={`${stats.totalBottles} bouteilles`}
+        />
+        <StatsCard
+          title="En Stock"
+          value={stats.enStock}
+          icon={TrendingUp}
+          trend="Entrepôt"
+        />
+        <StatsCard
+          title="Chez Clients"
+          value={stats.chezClients}
+          icon={Users}
+          trend="En circulation"
+        />
+        <StatsCard
+          title="En Transit"
+          value={stats.enCirculation}
+          icon={AlertCircle}
+          trend="Cantinier"
+        />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="rounded-lg border bg-card p-6">
+          <h3 className="text-lg font-semibold mb-4">Bouteilles Récentes</h3>
+          <div className="space-y-2">
+            {bottles.slice(0, 5).map(bottle => (
+              <div key={bottle.id} className="flex justify-between items-center p-2 hover:bg-muted rounded">
+                <div>
+                  <p className="font-medium">{bottle.serialNumber}</p>
+                  <p className="text-sm text-muted-foreground">{bottle.gasBrand}</p>
+                </div>
+                <span className="text-sm px-2 py-1 rounded bg-primary/10">
+                  {bottle.currentLocation}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-lg border bg-card p-6">
+          <h3 className="text-lg font-semibold mb-4">Clients</h3>
+          <div className="space-y-2">
+            {clients.slice(0, 5).map(client => (
+              <div key={client.id} className="flex justify-between items-center p-2 hover:bg-muted rounded">
+                <div>
+                  <p className="font-medium">{client.name}</p>
+                  <p className="text-sm text-muted-foreground">{client.phone}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

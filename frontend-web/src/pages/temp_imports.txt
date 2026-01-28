@@ -1,0 +1,2 @@
+import { QRCodeGenerator } from '@/components/bottles/QRCodeGenerator';
+import { QRCodeScanner } from '@/components/bottles/QRCodeScanner';

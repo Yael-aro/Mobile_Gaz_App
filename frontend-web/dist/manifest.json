@@ -1,0 +1,17 @@
+{
+  "name": "Eluxtan - Gestion des Bouteilles",
+  "short_name": "Eluxtan",
+  "description": "Système de gestion des bouteilles de gaz",
+  "theme_color": "#0088FE",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "start_url": "/",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
